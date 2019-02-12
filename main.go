@@ -5,6 +5,10 @@ import (
 	"net/http"
 	"time"
 
+	controller "github.com/babyfaceeasy/recipe_api/controllers"
+
+	"github.com/babyfaceeasy/recipe_api/models"
+
 	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/mysql"
@@ -24,14 +28,17 @@ func main() {
 	}
 	log.Println("Connection Established")
 
+	// Migrate the Schema
+	db.AutoMigrate(&models.Recipe{})
+
 	r := mux.NewRouter()
 
 	// add endpoints here
-	r.HandleFunc("/", HomeHandler)
+	r.HandleFunc("/", controller.HomeHandler)
 
 	srv := &http.Server{
 		Handler:      r,
-		Addr:         "127.0.0.1:8000",
+		Addr:         "127.0.0.1:8080",
 		WriteTimeout: 15 * time.Second,
 		ReadTimeout:  15 * time.Second,
 	}
