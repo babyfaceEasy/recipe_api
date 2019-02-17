@@ -160,6 +160,7 @@ func GetRecipe(w http.ResponseWriter, r *http.Request) {
 	var recipe models.Recipe
 	// get recipe based on id
 	db.First(&recipe, 1)
+
 	// create response
 	w.Header().Set("Content-type", "application/json")
 	w.WriteHeader(http.StatusOK)
