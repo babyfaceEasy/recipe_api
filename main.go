@@ -31,6 +31,8 @@ func main() {
 	// Migrate the Schema
 	db.AutoMigrate(&models.Recipe{})
 
+	log.Println("Tables created!")
+
 	r := mux.NewRouter()
 
 	// add endpoints here
