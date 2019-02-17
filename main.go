@@ -37,7 +37,8 @@ func main() {
 
 	// add endpoints here
 	r.HandleFunc("/", controller.HomeHandler).Methods("GET").Name("home")
-	r.HandleFunc("/recipe", controller.NewRecipe).Methods("POST").Name("newRecipe")
+	r.HandleFunc("/recipes", controller.NewRecipe).Methods("POST").Name("newRecipe")
+	r.HandleFunc("/recipes", controller.ListRecipes).Methods("GET").Name("listRecipes")
 
 	srv := &http.Server{
 		Handler:      r,

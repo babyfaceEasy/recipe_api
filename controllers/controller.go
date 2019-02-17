@@ -104,3 +104,45 @@ func NewRecipe(w http.ResponseWriter, r *http.Request) {
 	// write response back
 	w.Write(myRespJSON)
 }
+
+// ListRecipes returns all the recipes in our database.
+func ListRecipes(w http.ResponseWriter, r *http.Request) {
+	//connect to the db
+	db, err := gorm.Open("mysql", "root:root@tcp(127.0.0.1:3306)/recipedemo?charset=utf8&parseTime=True&loc=Local")
+	defer db.Close()
+
+	if err != nil {
+		log.Println(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+
+	// var to hold all recipes
+	var recipes []models.Recipe
+
+	// get all recipes back
+	db.Find(&recipes)
+
+	// create ur response
+	myResp := MyResponse{
+		Status:  http.StatusOK,
+		Message: "List of recipes in the database",
+		Data:    recipes,
+	}
+
+	// create json out of recipes
+	myRespJSON, err := json.Marshal(myResp)
+
+	if err != nil {
+		log.Println("Couldn't marshal it")
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	//set header values
+	w.Header().Set("Content-type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	// write to output
+	w.Write(myRespJSON)
+
+}
