@@ -11,12 +11,6 @@ import (
 	valid "github.com/asaskevich/govalidator"
 )
 
-/*
-type test_struct struct {
-	Test string
-}
-*/
-
 type RecipeForm struct {
 	Name       string `json:"name" valid:"required"`
 	PrepTime   string `json:"prepTime" valid:"required"`
@@ -76,6 +70,7 @@ func NewRecipe(w http.ResponseWriter, r *http.Request) {
 		Vegetarian: recipe.Vegetarian,
 	}
 
+	// connecting to my db
 	db, err := gorm.Open("mysql", "root:root@tcp(127.0.0.1:3306)/recipedemo?charset=utf8&parseTime=True&loc=Local")
 	defer db.Close()
 	if err != nil {
@@ -108,46 +103,4 @@ func NewRecipe(w http.ResponseWriter, r *http.Request) {
 
 	// write response back
 	w.Write(myRespJSON)
-	/*
-		//create the recipe model
-		var recipeModel models.Recipe
-
-		recipeModel.Name = recipe.Name
-		recipe.PrepTime = recipe.PrepTime
-		//recipe.Difficulty, _ = ToInt(recipe.Difficulty)
-
-		db, err := gorm.Open("mysql", "root:root@tcp(127.0.0.1:3306)/recipedemo?charset=utf8&parseTime=True&loc=Local")
-		defer db.Close()
-
-		// try saving it into the db
-		db.Create(models.Recipe{
-			Name:       recipe.Name,
-			Difficulty: re,
-			PrepTime:   recipe.PrepTime,
-			Vegetarian: bool(recipe.Vegetarian),
-		})
-
-		myResp := MyResponse{
-			Status:  http.StatusCreated,
-			Message: "Recipe created successfully",
-			Data:    nil,
-		}
-
-		// Marshal or convert the myResp back to Json
-		myRespJSON, err := json.Marshal(myResp)
-		if err != nil {
-			log.Println(err)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		// Set Content-Type Header so that our clients would know how to read it.
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusCreated)
-
-		// Write json back to response
-		w.Write(myRespJSON)
-
-		//w.Write([]byte("cool"))
-	*/
 }
