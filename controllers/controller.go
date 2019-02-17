@@ -144,5 +144,26 @@ func ListRecipes(w http.ResponseWriter, r *http.Request) {
 
 	// write to output
 	w.Write(myRespJSON)
+}
 
+// GetRecipe return all the information relating to a recipe, based on its ID
+func GetRecipe(w http.ResponseWriter, r *http.Request) {
+	// connect to db
+	db, err := gorm.Open("mysql", "root:root@tcp(127.0.0.1:3306)/recipedemo?charset=utf8&parseTime=True&loc=Local")
+	defer db.Close()
+
+	if err != nil {
+		log.Println(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+
+	var recipe models.Recipe
+	// get recipe based on id
+	db.First(&recipe, 1)
+	// create response
+	w.Header().Set("Content-type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	// write back to browser
+	json.NewEncoder(w).Encode(recipe)
 }
