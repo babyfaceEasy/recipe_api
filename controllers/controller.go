@@ -16,9 +16,9 @@ import (
 
 type RecipeForm struct {
 	Name       string `json:"name" valid:"required"`
-	PrepTime   string `json:"prepTime" valid:"required"`
-	Difficulty int    `json:"difficulty" valid:"required"`
-	Vegetarian bool   `json:"vegetarian" valid:"bool,optional"`
+	PrepTime   string `json:"prepTime" valid:"required,length(1|3)"`
+	Difficulty int    `json:"difficulty" valid:"required,range(1|3)"`
+	Vegetarian bool   `json:"vegetarian" valid:"optional"`
 }
 
 type MyResponse struct {
@@ -153,7 +153,7 @@ func ListRecipes(w http.ResponseWriter, r *http.Request) {
 func GetRecipe(w http.ResponseWriter, r *http.Request) {
 	// get the variables passed
 	vars := mux.Vars(r)
-	recipeID, err := strconv.Atoi(vars["recipeID"])
+	recipeID, err := strconv.Atoi(vars["id"])
 
 	if err != nil {
 		log.Println(err)
@@ -179,10 +179,97 @@ func GetRecipe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	anonymousResp := struct {
+		Status  int
+		Message string
+		Data    models.Recipe
+	}{
+		http.StatusOK,
+		"Recipe found",
+		recipe,
+	}
+
+	// convert to json
+	respJSON, err := json.Marshal(anonymousResp)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
 	// create response
 	w.Header().Set("Content-type", "application/json")
 	w.WriteHeader(http.StatusOK)
 
 	// write back to browser
-	json.NewEncoder(w).Encode(recipe)
+	w.Write(respJSON)
+}
+
+// UpdateRecipe  updates the given recipe in the system.
+func UpdateRecipe(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+
+	// get the data passed
+	decoder := json.NewDecoder(r.Body)
+	var recipe RecipeForm
+
+	err := decoder.Decode(&recipe)
+
+	if err != nil {
+		log.Println(err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	recipeID, err := strconv.Atoi(vars["id"])
+
+	if err != nil {
+		log.Println(err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// connect to db
+	db, err := gorm.Open("mysql", "root:root@tcp(127.0.0.1:3306)/recipedemo?charset=utf8&parseTime=True&loc=Local")
+	if err != nil {
+		log.Println(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	var recipeModel models.Recipe
+	db.First(&recipeModel, recipeID)
+
+	if (models.Recipe{}) == recipeModel {
+		http.Error(w, "Recipe doesnot exist.", http.StatusNotFound)
+		return
+	}
+
+	recipeModel.Name = recipe.Name
+	recipeModel.Difficulty = recipe.Difficulty
+	recipeModel.PrepTime = recipe.PrepTime
+	recipeModel.Vegetarian = recipe.Vegetarian
+	db.Save(&recipeModel)
+
+	myResp := struct {
+		Status  int
+		Message string
+		Data    models.Recipe
+	}{
+		http.StatusOK,
+		"Updated recipe.",
+		recipeModel,
+	}
+
+	myRespJSON, err := json.Marshal(myResp)
+	if err != nil {
+		log.Println(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// write back
+	w.Header().Set("Content-type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(myRespJSON)
 }

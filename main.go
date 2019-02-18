@@ -40,6 +40,7 @@ func main() {
 	r.HandleFunc("/recipes", controller.NewRecipe).Methods("POST").Name("newRecipe")
 	r.HandleFunc("/recipes", controller.ListRecipes).Methods("GET").Name("listRecipes")
 	r.HandleFunc("/recipes/{recipeID}", controller.GetRecipe).Methods("GET").Name("getRecipe")
+	r.HandleFunc("/recipes/{id}", controller.UpdateRecipe).Methods("PUT").Name("updateRecipe")
 
 	srv := &http.Server{
 		Handler:      r,
