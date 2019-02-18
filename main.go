@@ -31,10 +31,15 @@ func main() {
 	// Migrate the Schema
 	db.AutoMigrate(&models.Recipe{})
 
+	log.Println("Tables created!")
+
 	r := mux.NewRouter()
 
 	// add endpoints here
-	r.HandleFunc("/", controller.HomeHandler)
+	r.HandleFunc("/", controller.HomeHandler).Methods("GET").Name("home")
+	r.HandleFunc("/recipes", controller.NewRecipe).Methods("POST").Name("newRecipe")
+	r.HandleFunc("/recipes", controller.ListRecipes).Methods("GET").Name("listRecipes")
+	r.HandleFunc("/recipes/{recipeID}", controller.GetRecipe).Methods("GET").Name("getRecipe")
 
 	srv := &http.Server{
 		Handler:      r,
