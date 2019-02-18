@@ -4,6 +4,9 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strconv"
+
+	"github.com/gorilla/mux"
 
 	"github.com/babyfaceeasy/recipe_api/models"
 	"github.com/jinzhu/gorm"
@@ -148,6 +151,15 @@ func ListRecipes(w http.ResponseWriter, r *http.Request) {
 
 // GetRecipe return all the information relating to a recipe, based on its ID
 func GetRecipe(w http.ResponseWriter, r *http.Request) {
+	// get the variables passed
+	vars := mux.Vars(r)
+	recipeID, err := strconv.Atoi(vars["recipeID"])
+
+	if err != nil {
+		log.Println(err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 	// connect to db
 	db, err := gorm.Open("mysql", "root:root@tcp(127.0.0.1:3306)/recipedemo?charset=utf8&parseTime=True&loc=Local")
 	defer db.Close()
@@ -159,7 +171,13 @@ func GetRecipe(w http.ResponseWriter, r *http.Request) {
 
 	var recipe models.Recipe
 	// get recipe based on id
-	db.First(&recipe, 1)
+	db.First(&recipe, recipeID)
+
+	if (models.Recipe{}) == recipe {
+		w.Header().Set("Content-type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
 
 	// create response
 	w.Header().Set("Content-type", "application/json")
