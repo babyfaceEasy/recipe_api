@@ -241,15 +241,25 @@ func UpdateRecipe(w http.ResponseWriter, r *http.Request) {
 	db.First(&recipeModel, recipeID)
 
 	if (models.Recipe{}) == recipeModel {
-		http.Error(w, "Recipe doesnot exist.", http.StatusNotFound)
+		http.Error(w, "Recipe does not exist.", http.StatusNotFound)
 		return
 	}
 
-	recipeModel.Name = recipe.Name
-	recipeModel.Difficulty = recipe.Difficulty
-	recipeModel.PrepTime = recipe.PrepTime
-	recipeModel.Vegetarian = recipe.Vegetarian
-	db.Save(&recipeModel)
+	/*
+		recipeModel.Name = recipe.Name
+		recipeModel.Difficulty = recipe.Difficulty
+		recipeModel.PrepTime = recipe.PrepTime
+		recipeModel.Vegetarian = recipe.Vegetarian
+
+		db.Save(&recipeModel)
+	*/
+
+	db.Model(&recipeModel).Updates(map[string]interface{}{
+		"name":       recipe.Name,
+		"prepTime":   recipe.PrepTime,
+		"difficulty": recipe.Difficulty,
+		"vegetarian": recipe.Vegetarian,
+	})
 
 	myResp := struct {
 		Status  int
