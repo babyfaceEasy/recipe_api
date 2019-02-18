@@ -231,6 +231,7 @@ func UpdateRecipe(w http.ResponseWriter, r *http.Request) {
 
 	// connect to db
 	db, err := gorm.Open("mysql", "root:root@tcp(127.0.0.1:3306)/recipedemo?charset=utf8&parseTime=True&loc=Local")
+	defer db.Close()
 	if err != nil {
 		log.Println(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -279,6 +280,63 @@ func UpdateRecipe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// write back
+	w.Header().Set("Content-type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(myRespJSON)
+}
+
+// DeleteRecipe this deletes a given recipe from the sytsem.
+func DeleteRecipe(w http.ResponseWriter, r *http.Request) {
+	urlValues := mux.Vars(r)
+
+	// get the id in integer format
+	recipeID, err := strconv.Atoi(urlValues["id"])
+
+	if err != nil {
+		log.Println(err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// connect to the db
+	db, err := gorm.Open("mysql", "root:root@tcp(127.0.0.1:3306)/recipedemo?charset=utf8&parseTime=True&loc=Local")
+	defer db.Close()
+	if err != nil {
+		log.Println(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// check to see if the record exist
+	var recipeModel models.Recipe
+	db.First(&recipeModel, recipeID)
+
+	// check if the recipe exist
+	if (models.Recipe{}) == recipeModel {
+		log.Println("Recipe not found")
+		http.Error(w, "Recipe does not exist.", http.StatusNotFound)
+		return
+	}
+
+	// delete the record / recipe
+	db.Delete(&recipeModel)
+
+	myResp := struct {
+		Message string
+	}{
+		"Delete action was successful",
+	}
+
+	// encode response
+	myRespJSON, err := json.Marshal(myResp)
+
+	if err != nil {
+		log.Println(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// return success
 	w.Header().Set("Content-type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write(myRespJSON)
