@@ -2,6 +2,7 @@ package controller
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -19,6 +20,11 @@ type RecipeForm struct {
 	PrepTime   string `json:"prepTime" valid:"required,length(1|3)"`
 	Difficulty int    `json:"difficulty" valid:"required,range(1|3)"`
 	Vegetarian bool   `json:"vegetarian" valid:"optional"`
+}
+
+type RateForm struct {
+	RecipeID uint `json:"recipe_id" valid:"required,numeric"`
+	Rating   uint `json:"rating" valid:"required,numeric,range(1|5)"`
 }
 
 type MyResponse struct {
@@ -171,11 +177,17 @@ func GetRecipe(w http.ResponseWriter, r *http.Request) {
 
 	var recipe models.Recipe
 	// get recipe based on id
-	db.First(&recipe, recipeID)
-
-	if (models.Recipe{}) == recipe {
+	dbc := db.First(&recipe, recipeID)
+	if db.First(&recipe, recipeID).RecordNotFound() {
 		w.Header().Set("Content-type", "application/json")
-		w.WriteHeader(http.StatusNotFound)
+		http.Error(w, "Resource not found.", http.StatusNotFound)
+		return
+	}
+
+	if dbc.Error != nil {
+		log.Println(fmt.Sprintf("%s", dbc.Error))
+		w.Header().Set("Content-type", "application/json")
+		http.Error(w, fmt.Sprintf("%s", dbc.Error), http.StatusInternalServerError)
 		return
 	}
 
@@ -239,10 +251,16 @@ func UpdateRecipe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var recipeModel models.Recipe
-	db.First(&recipeModel, recipeID)
+	dbc := db.First(&recipeModel, recipeID)
 
-	if (models.Recipe{}) == recipeModel {
-		http.Error(w, "Recipe does not exist.", http.StatusNotFound)
+	if db.First(&recipeModel, recipeID).RecordNotFound() {
+		http.Error(w, "Resource not found.", http.StatusNotFound)
+		return
+	}
+
+	if dbc.Error != nil {
+		log.Println(dbc.Error)
+		http.Error(w, fmt.Sprintf("%s", dbc.Error), http.StatusInternalServerError)
 		return
 	}
 
@@ -309,17 +327,29 @@ func DeleteRecipe(w http.ResponseWriter, r *http.Request) {
 
 	// check to see if the record exist
 	var recipeModel models.Recipe
-	db.First(&recipeModel, recipeID)
+	dbc := db.First(&recipeModel, recipeID)
 
-	// check if the recipe exist
-	if (models.Recipe{}) == recipeModel {
+	if db.First(&recipeModel, recipeID).RecordNotFound() {
 		log.Println("Recipe not found")
 		http.Error(w, "Recipe does not exist.", http.StatusNotFound)
 		return
 	}
 
+	if dbc.Error != nil {
+		log.Println(dbc.Error)
+		http.Error(w, fmt.Sprintf("%s", dbc.Error), http.StatusInternalServerError)
+		return
+	}
+
 	// delete the record / recipe
-	db.Delete(&recipeModel)
+	err = db.Delete(&recipeModel).Error
+
+	if err != nil {
+		errVal := fmt.Sprintf("%s", err)
+		log.Println(errVal)
+		http.Error(w, errVal, http.StatusInternalServerError)
+		return
+	}
 
 	myResp := struct {
 		Message string
@@ -340,4 +370,9 @@ func DeleteRecipe(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write(myRespJSON)
+}
+
+// RateRecipe this allows  a user to rate a recipe.
+func RateRecipe(w http.ResponseWriter, r *http.Request) {
+	w.Write([]byte("Rate a recipe"))
 }

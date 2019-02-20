@@ -14,4 +14,12 @@ type Recipe struct {
 	PrepTime   string `gorm:"size:10 NOT NULL" json:"prepTime"`
 	Difficulty int    `gorm:"size:3 NOT NULL" json:"difficulty"`
 	Vegetarian bool   `json:"vegetarian"`
+	Ratings    []Rate
+}
+
+// Rate the model for Rate entity
+type Rate struct {
+	gorm.Model
+	rate     uint
+	RecipeID uint
 }
