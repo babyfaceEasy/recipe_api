@@ -435,10 +435,11 @@ func RateRecipe(w http.ResponseWriter, r *http.Request) {
 
 	rateModel := models.Rate{RecipeID: uint(recipeID), Rate: rate.Rating}
 
-	dbc = db.Create(&rateModel)
+	//dbc = db.Create(&rateModel)
+	assocErr := db.Model(&recipeModel).Association("Rate").Append(rateModel).Error
 
-	if dbc.Error != nil {
-		log.Println(dbc.Error)
+	if assocErr != nil {
+		log.Println(assocErr)
 		http.Error(w, "Could not add rating. Try again later.", http.StatusInternalServerError)
 		return
 	}
