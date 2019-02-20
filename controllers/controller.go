@@ -15,6 +15,7 @@ import (
 	valid "github.com/asaskevich/govalidator"
 )
 
+// RecipeForm struct for recipe payload
 type RecipeForm struct {
 	Name       string `json:"name" valid:"required"`
 	PrepTime   string `json:"prepTime" valid:"required,length(1|3)"`
@@ -22,11 +23,12 @@ type RecipeForm struct {
 	Vegetarian bool   `json:"vegetarian" valid:"optional"`
 }
 
+// RateForm struct for rate payload
 type RateForm struct {
-	RecipeID uint `json:"recipe_id" valid:"required,numeric"`
-	Rating   uint `json:"rating" valid:"required,numeric,range(1|5)"`
+	Rating uint `json:"rating" valid:"required,numeric,range(1|5)"`
 }
 
+// MyResponse struct used to shape me response
 type MyResponse struct {
 	Status  int             `json:"status"`
 	Message string          `json:"message"`
@@ -190,6 +192,11 @@ func GetRecipe(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("%s", dbc.Error), http.StatusInternalServerError)
 		return
 	}
+
+	//var ratings []models.Rate
+
+	db.Model(&recipe).Related(&recipe.Rate)
+	//recipe.Rate = ratings
 
 	anonymousResp := struct {
 		Status  int
@@ -374,5 +381,85 @@ func DeleteRecipe(w http.ResponseWriter, r *http.Request) {
 
 // RateRecipe this allows  a user to rate a recipe.
 func RateRecipe(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("Rate a recipe"))
+	//w.Write([]byte("Rate a recipe"))
+	decoder := json.NewDecoder(r.Body)
+
+	var rate RateForm
+
+	// decode the body into a struct
+	err := decoder.Decode(&rate)
+	if err != nil {
+		log.Println(err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	_, err = valid.ValidateStruct(rate)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// get the recipe id
+	vars := mux.Vars(r)
+	recipeID, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		http.Error(w, "recipe id is needed and must be an integer.", http.StatusBadRequest)
+		return
+	}
+
+	var recipeModel models.Recipe
+	// connect to the db
+	db, err := gorm.Open("mysql", "root:root@tcp(127.0.0.1:3306)/recipedemo?charset=utf8&parseTime=True&loc=Local")
+	defer db.Close()
+	if err != nil {
+		log.Println(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// check to see if the recipe exist
+	dbc := db.First(&recipeModel, recipeID)
+
+	if db.First(&recipeModel, recipeID).RecordNotFound() {
+		http.Error(w, "Recipe does not exist", http.StatusNotFound)
+		return
+	}
+
+	if dbc.Error != nil {
+		log.Println(dbc.Error)
+		http.Error(w, fmt.Sprintf("%s", dbc.Error), http.StatusInternalServerError)
+		return
+	}
+
+	rateModel := models.Rate{RecipeID: uint(recipeID), Rate: rate.Rating}
+
+	dbc = db.Create(&rateModel)
+
+	if dbc.Error != nil {
+		log.Println(dbc.Error)
+		http.Error(w, "Could not add rating. Try again later.", http.StatusInternalServerError)
+		return
+	}
+
+	myResp := struct {
+		Message string
+	}{
+		"Rating added succesfully.",
+	}
+
+	// conver to json
+	myRespJSON, err := json.Marshal(myResp)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	//set headers
+	w.Header().Set("Content-type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(myRespJSON)
+
 }
