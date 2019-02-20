@@ -30,6 +30,7 @@ func main() {
 
 	// Migrate the Schema
 	db.AutoMigrate(&models.Recipe{})
+	db.AutoMigrate(&models.Rate{})
 
 	log.Println("Tables created!")
 
@@ -39,7 +40,10 @@ func main() {
 	r.HandleFunc("/", controller.HomeHandler).Methods("GET").Name("home")
 	r.HandleFunc("/recipes", controller.NewRecipe).Methods("POST").Name("newRecipe")
 	r.HandleFunc("/recipes", controller.ListRecipes).Methods("GET").Name("listRecipes")
-	r.HandleFunc("/recipes/{recipeID}", controller.GetRecipe).Methods("GET").Name("getRecipe")
+	r.HandleFunc("/recipes/{id}", controller.GetRecipe).Methods("GET").Name("getRecipe")
+	r.HandleFunc("/recipes/{id}", controller.UpdateRecipe).Methods("PUT").Name("updateRecipe")
+	r.HandleFunc("/recipes/{id}", controller.DeleteRecipe).Methods("DELETE").Name("deleteRecipe")
+	r.HandleFunc("/recipes/{id}/rating", controller.RateRecipe).Methods("POST").Name("rateRecipe")
 
 	srv := &http.Server{
 		Handler:      r,

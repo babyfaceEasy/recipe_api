@@ -2,6 +2,7 @@ package controller
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -16,9 +17,14 @@ import (
 
 type RecipeForm struct {
 	Name       string `json:"name" valid:"required"`
-	PrepTime   string `json:"prepTime" valid:"required"`
-	Difficulty int    `json:"difficulty" valid:"required"`
-	Vegetarian bool   `json:"vegetarian" valid:"bool,optional"`
+	PrepTime   string `json:"prepTime" valid:"required,length(1|3)"`
+	Difficulty int    `json:"difficulty" valid:"required,range(1|3)"`
+	Vegetarian bool   `json:"vegetarian" valid:"optional"`
+}
+
+type RateForm struct {
+	RecipeID uint `json:"recipe_id" valid:"required,numeric"`
+	Rating   uint `json:"rating" valid:"required,numeric,range(1|5)"`
 }
 
 type MyResponse struct {
@@ -153,7 +159,7 @@ func ListRecipes(w http.ResponseWriter, r *http.Request) {
 func GetRecipe(w http.ResponseWriter, r *http.Request) {
 	// get the variables passed
 	vars := mux.Vars(r)
-	recipeID, err := strconv.Atoi(vars["recipeID"])
+	recipeID, err := strconv.Atoi(vars["id"])
 
 	if err != nil {
 		log.Println(err)
@@ -171,11 +177,35 @@ func GetRecipe(w http.ResponseWriter, r *http.Request) {
 
 	var recipe models.Recipe
 	// get recipe based on id
-	db.First(&recipe, recipeID)
-
-	if (models.Recipe{}) == recipe {
+	dbc := db.First(&recipe, recipeID)
+	if db.First(&recipe, recipeID).RecordNotFound() {
 		w.Header().Set("Content-type", "application/json")
-		w.WriteHeader(http.StatusNotFound)
+		http.Error(w, "Resource not found.", http.StatusNotFound)
+		return
+	}
+
+	if dbc.Error != nil {
+		log.Println(fmt.Sprintf("%s", dbc.Error))
+		w.Header().Set("Content-type", "application/json")
+		http.Error(w, fmt.Sprintf("%s", dbc.Error), http.StatusInternalServerError)
+		return
+	}
+
+	anonymousResp := struct {
+		Status  int
+		Message string
+		Data    models.Recipe
+	}{
+		http.StatusOK,
+		"Recipe found",
+		recipe,
+	}
+
+	// convert to json
+	respJSON, err := json.Marshal(anonymousResp)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -184,5 +214,165 @@ func GetRecipe(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 
 	// write back to browser
-	json.NewEncoder(w).Encode(recipe)
+	w.Write(respJSON)
+}
+
+// UpdateRecipe  updates the given recipe in the system.
+func UpdateRecipe(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+
+	// get the data passed
+	decoder := json.NewDecoder(r.Body)
+	var recipe RecipeForm
+
+	err := decoder.Decode(&recipe)
+
+	if err != nil {
+		log.Println(err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	recipeID, err := strconv.Atoi(vars["id"])
+
+	if err != nil {
+		log.Println(err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// connect to db
+	db, err := gorm.Open("mysql", "root:root@tcp(127.0.0.1:3306)/recipedemo?charset=utf8&parseTime=True&loc=Local")
+	defer db.Close()
+	if err != nil {
+		log.Println(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	var recipeModel models.Recipe
+	dbc := db.First(&recipeModel, recipeID)
+
+	if db.First(&recipeModel, recipeID).RecordNotFound() {
+		http.Error(w, "Resource not found.", http.StatusNotFound)
+		return
+	}
+
+	if dbc.Error != nil {
+		log.Println(dbc.Error)
+		http.Error(w, fmt.Sprintf("%s", dbc.Error), http.StatusInternalServerError)
+		return
+	}
+
+	/*
+		recipeModel.Name = recipe.Name
+		recipeModel.Difficulty = recipe.Difficulty
+		recipeModel.PrepTime = recipe.PrepTime
+		recipeModel.Vegetarian = recipe.Vegetarian
+
+		db.Save(&recipeModel)
+	*/
+
+	db.Model(&recipeModel).Updates(map[string]interface{}{
+		"name":       recipe.Name,
+		"prepTime":   recipe.PrepTime,
+		"difficulty": recipe.Difficulty,
+		"vegetarian": recipe.Vegetarian,
+	})
+
+	myResp := struct {
+		Status  int
+		Message string
+		Data    models.Recipe
+	}{
+		http.StatusOK,
+		"Updated recipe.",
+		recipeModel,
+	}
+
+	myRespJSON, err := json.Marshal(myResp)
+	if err != nil {
+		log.Println(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// write back
+	w.Header().Set("Content-type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(myRespJSON)
+}
+
+// DeleteRecipe this deletes a given recipe from the sytsem.
+func DeleteRecipe(w http.ResponseWriter, r *http.Request) {
+	urlValues := mux.Vars(r)
+
+	// get the id in integer format
+	recipeID, err := strconv.Atoi(urlValues["id"])
+
+	if err != nil {
+		log.Println(err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// connect to the db
+	db, err := gorm.Open("mysql", "root:root@tcp(127.0.0.1:3306)/recipedemo?charset=utf8&parseTime=True&loc=Local")
+	defer db.Close()
+	if err != nil {
+		log.Println(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// check to see if the record exist
+	var recipeModel models.Recipe
+	dbc := db.First(&recipeModel, recipeID)
+
+	if db.First(&recipeModel, recipeID).RecordNotFound() {
+		log.Println("Recipe not found")
+		http.Error(w, "Recipe does not exist.", http.StatusNotFound)
+		return
+	}
+
+	if dbc.Error != nil {
+		log.Println(dbc.Error)
+		http.Error(w, fmt.Sprintf("%s", dbc.Error), http.StatusInternalServerError)
+		return
+	}
+
+	// delete the record / recipe
+	err = db.Delete(&recipeModel).Error
+
+	if err != nil {
+		errVal := fmt.Sprintf("%s", err)
+		log.Println(errVal)
+		http.Error(w, errVal, http.StatusInternalServerError)
+		return
+	}
+
+	myResp := struct {
+		Message string
+	}{
+		"Delete action was successful",
+	}
+
+	// encode response
+	myRespJSON, err := json.Marshal(myResp)
+
+	if err != nil {
+		log.Println(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// return success
+	w.Header().Set("Content-type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(myRespJSON)
+}
+
+// RateRecipe this allows  a user to rate a recipe.
+func RateRecipe(w http.ResponseWriter, r *http.Request) {
+	w.Write([]byte("Rate a recipe"))
 }
